@@ -27,7 +27,9 @@ async function login() {
     const login = await readLines(Deno.stdin).next();
     await console.log('Please enter your password:');
     const password = await readLines(Deno.stdin).next();
-    console.log(await client.login({ login: login.value, password: password.value }));
+    let data = await client.login({ login: login.value, password: password.value });
+    Deno.writeTextFile('./settings.json', JSON.stringify({ token: data.token }));
+    openClient();
 }
 
 function openClient(){

@@ -259,6 +259,22 @@ export class Client {
 
         return await request.json();
     }
+
+    public async getMember(guild: string, query: string) {
+        const request = await fetch(`https://discord.com/api/v9/guilds/${guild}/members/search?query="${query}"`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `${this.token}`
+            }
+        });
+
+        if (request.status !== 200) {
+            throw new Error((await request.json()).message ?? "Unknown Error")
+        }
+
+        return await request.json();
+    }
 }
 
 function addEmoji(channel: string, message: string, emoji: string, token: any) {

@@ -15,6 +15,8 @@ export function cliClient(client: any) {
 }
 
 async function listenForCommand(client: any, tag: string, gateway: any) {
+    let chan = JSON.parse(await Deno.readTextFile('./cache.json')).channel
+    if (chan !== '') { await client.sendTyping(chan) }
     let input = await read();
     if (input.value.startsWith('/')) {
         let command = input.value.replaceAll('/', '');
@@ -30,28 +32,76 @@ async function listenForCommand(client: any, tag: string, gateway: any) {
             listenForCommand(client, tag, gateway);
         }else if (command === 'channels') {
             let cache = JSON.parse(await Deno.readTextFile('./cache.json'));
-            let channels: any = await client.getChannels(cache.server);
-            for (let i = 0; i<channels.length;i++) {
-                let channel: any = channels[i];
-                if (!channel.bitrate) {
-                    console.log(`${i+1}. #${channel.name}`);
+            if (!cache.server) {
+                console.log('You are not in a server');
+                listenForCommand(client, tag, gateway);
+            }else {
+                let channels: any = await client.getChannels(cache.server);
+                for (let i = 0; i<channels.length;i++) {
+                    let channel: any = channels[i];
+                    if (channel.type === 0) {
+                        console.log(`${i+1}. #${channel.name}`);
+                    }
                 }
+                console.log('What channel do you want to switch to?');
+                let channel: any = await read();
+                switchToChannel(channel, channels, client, tag);
+                gateway.addEventListener('MESSAGE_CREATE', (e: any) => {
+                    let message = (e as CustomEvent).detail;
+                    recieveMessage(message, tag);
+                })
+                listenForCommand(client, tag, gateway);
             }
-            console.log('What channel do you want to switch to?');
-            let channel: any = await read();
-            switchToChannel(channel, channels, client, tag);
-            gateway.addEventListener('MESSAGE_CREATE', (e: any) => {
-                let message = (e as CustomEvent).detail;
-                recieveMessage(message, tag);
-            })
+        }else if (command === 'embed') {
+            let cache = JSON.parse(await Deno.readTextFile('./cache.json'));
+            if (!cache.channel) {
+                console.log('You are not in a channel.');
+                listenForCommand(client, tag, gateway);
+                
+            }else {
+                console.log('---------- Embed Creator ----------');
+                console.log('Title:');
+                let title = await read();
+                console.log('Description:');
+                let description = await read();
+                console.log('Color:');
+                let color = await read();
+                client.sendMessage(cache.channel, {
+                    embeds: [
+                        {
+                            title: title.value,
+                            description: description.value,
+                            color: parseInt(color.value)
+                        }
+                    ]
+                })
+                console.log('-----------------------------------');
+                listenForCommand(client, tag, gateway);
+            }
+        }else if (command ==='help') {
+            console.log('---------- Help menu ----------');
+            console.log('/servers - Lists all servers');
+            console.log('/channels - Lists all channels');
+            console.log('/embed - Creates an embed');
+            console.log('-------------------------------');
             listenForCommand(client, tag, gateway);
-        }else {
+        }
+        else {
             console.log('Unknown command');
             listenForCommand(client, tag, gateway);
         }
     }else {
         let cache = JSON.parse(await Deno.readTextFile('./cache.json'));
-        await client.sendMessage(cache.channel, input.value);
+        if (!cache.channel) {
+            console.log('You are not in a channel.');
+            listenForCommand(client, tag, gateway);
+        }else {
+            // let content = await checkIfPing(input.value, client);
+            // console.log(await content)
+            // await client.sendMessage(cache.channel, content);
+            await client.sendMessage(cache.channel, input.value);
+            listenForCommand(client, tag, gateway);
+        }
     }
 }
 
@@ -104,5 +154,14 @@ async function recieveMessage(message: any, tag: string) {
         }else {
             console.log(`${message.author.username}#${message.author.discriminator}: ${message.content}`);
         }
+    }else if (message.content.includes(tag) || message.content.includes(`@everyone`) || message.content.includes(`@here`)) {
+        console.log(Colors.bgRed(`You were mentioned in ${message.channel_name} by ${message.author.username}#${message.author.discriminator}`));
+        console.log(message)
     }
 }
+/*
+async function checkIfPing(message: any, client: any) {
+    let cache = JSON.parse(await Deno.readTextFile('./cache.json'));
+    return await client.getMember(cache.server, message);
+}
+*/
